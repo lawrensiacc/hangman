@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangman | Tebak Kata</title>
+<style>
+  :root { color-scheme: dark; --bg:#10131b; --panel:#191f2b; --line:#30394a; --text:#f3f5fa; --muted:#aab4c5; --accent:#a78bfa; --good:#67e8b5; --bad:#fb7185; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px 14px; display:grid; place-items:center; background:radial-gradient(ellipse at top,#25203e 0,#10131b 55%); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
+  main { width:min(760px,100%); background:rgba(25,31,43,.96); border:1px solid var(--line); border-radius:24px; padding:clamp(18px,4vw,34px); box-shadow:0 22px 70px #0006; }
+  header { text-align:center; margin-bottom:22px; }
+  .eyebrow { color:var(--accent); text-transform:uppercase; letter-spacing:.2em; font-size:.76rem; font-weight:800; }
+  h1 { margin:8px 0 4px; font-size:clamp(2rem,7vw,3rem); letter-spacing:.08em; }
+  .subtitle { color:var(--muted); margin:0; }
+  .stats { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; margin:18px 0; }
+  .pill { border:1px solid var(--line); background:#111620; border-radius:999px; padding:8px 13px; color:var(--muted); font-size:.9rem; }
+  .pill strong { color:var(--text); }
+  .game { display:grid; grid-template-columns: minmax(130px, .8fr) minmax(0,1.2fr); gap:18px; align-items:center; }
+  .drawing { min-height:220px; display:grid; place-items:center; background:#111620; border:1px solid var(--line); border-radius:18px; }
+  svg { width:min(220px,100%); height:220px; }
+  .gallows { stroke:#8c97aa; stroke-width:5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .person { stroke:var(--bad); stroke-width:5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .word { display:flex; flex-wrap:wrap; justify-content:center; gap:7px; margin:20px 0 12px; }
+  .letter-slot { width:clamp(24px,6vw,40px); height:48px; display:grid; place-items:center; border-bottom:3px solid var(--accent); font-size:clamp(1rem,4vw,1.5rem); font-weight:800; }
+  .category { color:var(--muted); text-align:center; margin:8px 0 18px; }
+  .keyboard { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:7px; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); border-radius:10px; padding:10px 4px; background:#252d3d; color:var(--text); font-weight:750; transition:transform .12s,background .12s; }
+  button:hover:not(:disabled) { background:#3a3455; transform:translateY(-1px); }
+  button:disabled { opacity:.42; cursor:not-allowed; }
+  button.correct { background:#123a31; border-color:#246e5b; color:var(--good); opacity:1; }
+  button.wrong { background:#401e2a; border-color:#773447; color:var(--bad); opacity:1; }
+  .message { min-height:28px; text-align:center; color:var(--muted); margin:16px 0 8px; }
+  .message.good { color:var(--good); } .message.bad { color:var(--bad); }
+  .actions { display:flex; justify-content:center; gap:10px; margin-top:12px; }
+  .primary { background:var(--accent); color:#171326; border-color:transparent; padding:11px 18px; }
+  .primary:hover:not(:disabled) { background:#c4b5fd; }
+  .hidden { display:none; }
+  .footer { text-align:center; color:var(--muted); font-size:.8rem; margin-top:22px; }
+  @media(max-width:540px) { .game { grid-template-columns:1fr; gap:10px; } .drawing { min-height:170px; } svg { height:170px; } .keyboard { grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; } button { padding:9px 2px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Word guessing game</div>
+    <h1>HANGMAN</h1>
+    <p class="subtitle">Tebak kata tersembunyi sebelum nyawamu habis.</p>
+  </header>
+  <div class="stats">
+    <div class="pill">Nyawa: <strong id="lives">6 / 6</strong></div>
+    <div class="pill">Menang: <strong id="wins">0</strong></div>
+    <div class="pill">Kalah: <strong id="losses">0</strong></div>
+  </div>
+  <section class="game">
+    <div class="drawing" aria-label="Gambar hangman">
+      <svg viewBox="0 0 220 220" role="img" aria-label="Gambar hangman berubah sesuai tebakan salah">
+        <g class="gallows"><path d="M35 195 H185 M60 195 V25 H145 V48 M60 55 H90"/></g>
+        <circle id="head" class="person hidden" cx="145" cy="66" r="18"/>
+        <path id="body" class="person hidden" d="M145 84 V132"/>
+        <path id="leftArm" class="person hidden" d="M145 96 L119 116"/>
+        <path id="rightArm" class="person hidden" d="M145 96 L171 116"/>
+        <path id="leftLeg" class="person hidden" d="M145 132 L121 164"/>
+        <path id="rightLeg" class="person hidden" d="M145 132 L169 164"/>
+        <g id="sadFace" class="person hidden"><path d="M137 61 l4 4 M145 65 l4 -4 M137 76 q8 -9 16 0"/></g>
+      </svg>
+    </div>
+    <div>
+      <div class="word" id="word" aria-label="Kata tersembunyi"></div>
+      <p class="category">Kategori: <strong id="category">—</strong></p>
+      <div class="keyboard" id="keyboard" aria-label="Papan huruf"></div>
+    </div>
+  </section>
+  <p id="message" class="message" aria-live="polite">Pilih satu huruf untuk memulai!</p>
+  <div class="actions">
+    <button id="next" class="primary hidden">Main lagi ↻</button>
+  </div>
+  <p class="footer">Pikirkan petunjuknya. Pilih huruf dengan cermat.</p>
+</main>
+<script>
+const MAX_WRONG = 6;
+const WORDS = [
+  ["KUCING","Hewan"],["HARIMAU","Hewan"],["JERAPAH","Hewan"],["KELINCI","Hewan"],["GAJAH","Hewan"],["BUAYA","Hewan"],["BERUANG","Hewan"],
+  ["SEMANGKA","Buah"],["JERUK","Buah"],["MANGGA","Buah"],["NANAS","Buah"],["DURIAN","Buah"],["PISANG","Buah"],["ANGGUR","Buah"],
+  ["INDONESIA","Negara"],["JEPANG","Negara"],["BRAZIL","Negara"],["MESIR","Negara"],["KANADA","Negara"],["PERANCIS","Negara"],["AUSTRALIA","Negara"],["NORWEGIA","Negara"],
+  ["DOKTER","Profesi"],["GURU","Profesi"],["PILOT","Profesi"],["ARSITEK","Profesi"],["PETANI","Profesi"],["KOKI","Profesi"],
+  ["RENDANG","Makanan"],["BAKSO","Makanan"],["MARTABAK","Makanan"],["KETUPAT","Makanan"],["TEMPE","Makanan"],
+  ["BADMINTON","Olahraga"],["BASKET","Olahraga"],["RENANG","Olahraga"],["SEPAKBOLA","Olahraga"],
+  ["GITAR","Alat Musik"],["ANGKLUNG","Alat Musik"],["PIANO","Alat Musik"],["SERULING","Alat Musik"],
+  ["PAYUNG","Benda"],["SEPEDA","Benda"],["KOMPUTER","Benda"],["KACAMATA","Benda"],["LEMARI","Benda"]
+];
+let current = null, guessed = new Set(), wrong = [], wins = 0, losses = 0, lastIndex = -1, ended = false;
+const $ = id => document.getElementById(id);
+function pickWord() {
+  let i = Math.floor(Math.random() * WORDS.length);
+  while (WORDS.length > 1 && i === lastIndex) i = Math.floor(Math.random() * WORDS.length);
+  lastIndex = i; return WORDS[i];
+}
+function newRound() {
+  current = pickWord(); guessed = new Set(); wrong = []; ended = false;
+  $("category").textContent = current[1];
+  $("message").textContent = "Pilih satu huruf untuk memulai!";
+  $("message").className = "message";
+  $("next").classList.add("hidden");
+  render();
+}
+function renderWord() {
+  $("word").replaceChildren();
+  for (const ch of current[0]) {
+    const slot = document.createElement("span");
+    slot.className = "letter-slot";
+    slot.textContent = guessed.has(ch) || ended && wrong.length >= MAX_WRONG ? ch : guessed.has(ch) ? ch : "";
+    $("word").appendChild(slot);
+  }
+}
+function renderKeyboard() {
+  const keyboard = $("keyboard"); keyboard.replaceChildren();
+  for (let code=65; code<=90; code++) {
+    const ch = String.fromCharCode(code), btn = document.createElement("button");
+    btn.textContent = ch;
+    btn.disabled = guessed.has(ch) || ended;
+    if (guessed.has(ch)) btn.className = current[0].includes(ch) ? "correct" : "wrong";
+    btn.addEventListener("click", () => guess(ch));
+    keyboard.appendChild(btn);
+  }
+}
+function renderDrawing() {
+  ["head","body","leftArm","rightArm","leftLeg","rightLeg"].forEach((id,i) => $(id).classList.toggle("hidden", wrong.length < i+1));
+  $("sadFace").classList.toggle("hidden", wrong.length < MAX_WRONG);
+}
+function render() {
+  $("lives").textContent = `${MAX_WRONG-wrong.length} / ${MAX_WRONG}`;
+  $("wins").textContent = wins; $("losses").textContent = losses;
+  renderWord(); renderKeyboard(); renderDrawing();
+}
+function guess(ch) {
+  if (ended || guessed.has(ch)) return;
+  guessed.add(ch);
+  if (!current[0].includes(ch)) wrong.push(ch);
+  const won = [...current[0]].every(c => guessed.has(c));
+  if (won) {
+    ended = true; wins++;
+    $("message").textContent = "🎉 Selamat, kamu menang!";
+    $("message").className = "message good";
+  } else if (wrong.length >= MAX_WRONG) {
+    ended = true; losses++;
+    $("message").textContent = `Yah, kamu kalah! Kata yang benar: ${current[0]}.`;
+    $("message").className = "message bad";
+  } else if (current[0].includes(ch)) {
+    $("message").textContent = `Benar! Huruf ${ch} ada.`;
+    $("message").className = "message good";
+  } else {
+    $("message").textContent = `Salah! Huruf ${ch} tidak ada. Huruf salah: ${wrong.join(", ")}`;
+    $("message").className = "message bad";
+  }
+  if (ended) $("next").classList.remove("hidden");
+  render();
+}
+$("next").addEventListener("click", newRound);
+document.addEventListener("keydown", e => {
+  if (/^[a-z]$/i.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) guess(e.key.toUpperCase());
+  if (e.key === "Enter" && ended) newRound();
+});
+newRound();
+</script>
+</body>
+</html>
